@@ -25,7 +25,11 @@ const app = express();
 const server = http.createServer(app);
 
 // ---------------- Middleware ----------------
-app.use(cors());
+// Allow requests only from your frontend
+app.use(cors({
+  origin: "https://perfect-match-frontend-n2kz.onrender.com",
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -44,8 +48,9 @@ app.get("/", (req, res) => {
 // ---------------- Socket.IO ----------------
 const io = new Server(server, { 
   cors: { 
-    origin: "*", // allow all origins for testing; later restrict to your frontend URL
-    methods: ["GET", "POST"]
+    origin: "https://perfect-match-frontend-n2kz.onrender.com",
+    methods: ["GET", "POST"],
+    credentials: true
   } 
 });
 
@@ -55,7 +60,6 @@ const onlineUsers = new Map();
 io.on("connection", (socket) => {
   console.log("🔌 User connected:", socket.id);
 
-  // Join room for this user
   socket.on("joinRoom", (userId) => {
     if (!userId) return;
     if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
@@ -64,16 +68,12 @@ io.on("connection", (socket) => {
     console.log(`📡 User ${userId} joined room. Active sockets:`, onlineUsers.get(userId));
   });
 
-  // Handle sending a message
   socket.on("sendMessage", async (msg) => {
     const { sender, recipient, content } = msg;
     if (!sender || !recipient || !content || content.length > 100) return;
 
     try {
-      // Save message to DB
       const newMessage = await Message.create({ sender, recipient, content });
-
-      // Emit to sender and recipient rooms
       io.to(sender).emit("receiveMessage", newMessage);
       io.to(recipient).emit("receiveMessage", newMessage);
     } catch (err) {
@@ -81,7 +81,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Handle disconnect
   socket.on("disconnect", () => {
     console.log("⚠️ User disconnected:", socket.id);
     onlineUsers.forEach((socketsSet, userId) => {
@@ -95,7 +94,10 @@ io.on("connection", (socket) => {
 const mongoUri = process.env.MONGODB_URI;
 
 mongoose
-  .connect(mongoUri)
+  .connect(mongoUri, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+  })
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.error("MongoDB connection error:", err));
 
