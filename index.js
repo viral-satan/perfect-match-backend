@@ -1,11 +1,10 @@
-// server/index.js
 import express from "express";
 import http from "http";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
 import path from "path";
-import { fileURLToPath } from "url";
+import fs from "fs";
 import { Server } from "socket.io";
 
 import usersRouter from "./routes/users.js";
@@ -17,22 +16,24 @@ import Message from "./models/Message.js";
 dotenv.config();
 
 // ---------------- Setup paths ----------------
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// ---------------- Express + HTTP ----------------
 const app = express();
 const server = http.createServer(app);
 
+// ---------------- Ensure uploads folder exists ----------------
+const uploadsDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log("Created uploads folder:", uploadsDir);
+}
+
 // ---------------- Middleware ----------------
-// Allow requests only from your frontend
 app.use(cors({
   origin: "https://perfect-match-frontend-n2kz.onrender.com",
   credentials: true
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", express.static(uploadsDir));
 
 // ---------------- Routes ----------------
 app.use("/users", usersRouter);
@@ -54,7 +55,6 @@ const io = new Server(server, {
   } 
 });
 
-// Track userId → set of socket IDs
 const onlineUsers = new Map();
 
 io.on("connection", (socket) => {
@@ -94,10 +94,7 @@ io.on("connection", (socket) => {
 const mongoUri = process.env.MONGODB_URI;
 
 mongoose
-  .connect(mongoUri, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-  })
+  .connect(mongoUri, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.error("MongoDB connection error:", err));
 

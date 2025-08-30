@@ -3,18 +3,15 @@ import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import multer from "multer";
 import path from "path";
-import { fileURLToPath } from "url";
 import sharp from "sharp";
 import fs from "fs";
 
 const router = express.Router();
 
-// Absolute path setup for uploads
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const uploadsDir = path.join(__dirname, "../uploads");
+// ---------------- Uploads folder ----------------
+const uploadsDir = path.join(process.cwd(), "uploads");
 
-// Multer setup
+// ---------------- Multer setup ----------------
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadsDir),
   filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname)),
@@ -63,7 +60,6 @@ router.post("/answers/:userId", async (req, res) => {
   const { userId } = req.params;
   const { answers } = req.body;
 
-  // Updated to expect 20 answers instead of 10
   if (!answers || !Array.isArray(answers) || answers.length !== 20)
     return res.status(400).json({ success: false, message: "Answers must have 20 items" });
 
